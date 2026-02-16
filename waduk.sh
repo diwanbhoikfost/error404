@@ -395,7 +395,9 @@ IPVPS=$(curl -s ipv4.icanhazip.com)
 DOMAIN_MENU() {
 clear
 echo "=============================="
-echo "     SETUP DOMAIN XRAY"
+echo -e "\e[93;1m    DIWAN VPN TUNNELING  \e[0m "
+echo "=============================="
+echo "         SETUP DOMAIN "
 echo "=============================="
 echo "1. Random Domain (Default)"
 echo "2. Custom Domain (Pointing dulu ke Cloudflare)"
@@ -1146,6 +1148,15 @@ RESTART_SERVICE() {
 UDP_ZIVPN() {
 mkdir -p /usr/local
 
+    # Buat API key acak 6 karakter alfanumerik
+    local api_key
+    api_key=$(LC_ALL=C tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 6)
+
+    # Simpan API key ke file
+    local key_file="/etc/zivpn/api_auth.key"
+    echo "$api_key" > "$key_file"
+    chmod 600 "$key_file"  # Batasi akses file
+       
 set -euo pipefail
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
