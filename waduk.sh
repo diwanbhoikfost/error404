@@ -1212,6 +1212,16 @@ mkdir -p "${CFG_DIR}"
 wget -qO "${BIN_PATH}" "${BIN_URL}"
 chmod +x "${BIN_PATH}"
 wget -qO "${CFG_PATH}" "${CFG_URL}"
+
+echo "Clearing initial password(s) set during base installation..."
+jq '.auth.config = []' /etc/zivpn/config.json > /etc/zivpn/config.json.tmp && mv /etc/zivpn/config.json.tmp /etc/zivpn/config.json
+touch /etc/zivpn/users.db
+RANDOM_PASS="zivpn$(shuf -i 10000-99999 -n 1)"
+EXPIRY_DATE=$(date -d "+1 day" +%s)
+echo "Creating a temporary initial account..."
+echo "${RANDOM_PASS}:${EXPIRY_DATE}" >> /etc/zivpn/users.db
+jq --arg pass "$RANDOM_PASS" '.auth.config += [$pass]' /etc/zivpn/config.json > /etc/zivpn/config.json.tmp && mv /etc/zivpn/config.json.tmp /etc/zivpn/config.json
+
 clear
 echo -e "${CYAN} ============================ ${NC}"
 echo -e "${YELLOW} Generate Certs Files Zivpn ${NC}"
