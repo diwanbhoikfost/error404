@@ -11,14 +11,14 @@ LIGHT_GREEN='\033[1;32m'
 NC='\033[0m' # No Color
 
 # LICENSE IP
-LICENSE_URL="https://raw.githubusercontent.com/yansyntax/permission/main/regist"
+LICENSE_URL="https://raw.githubusercontent.com/diwanbhoikfost/permission/main/regist"
 LICENSE_INFO_FILE="/etc/zivpn/.license_info"
 
 # Link Download Bin amd64
 BIN_URL="https://github.com/arivpnstores/udp-zivpn/releases/download/zahidbd2/udp-zivpn-linux-amd64"
 
 # Link Download config.json
-CFG_URL="https://raw.githubusercontent.com/yansyntax/error404/main/udpzivpn/config.json"
+CFG_URL="https://raw.githubusercontent.com/diwanbhoikfost/error404/main/udpzivpn/config.json"
 
 # Path Bin amd64
 BIN_PATH="/usr/local/bin/zivpn"
