@@ -1,20 +1,22 @@
 <p style="text-align:center">
-  <font color="#D1007F">✦</font><font color="#C20096">✦</font><font color="#A400B2">✦</font>
-  <font color="#8600C9">✶</font><font color="#6900E0">✦</font><font color="#4B00F7">✶</font><br>
+  <font color="#0044FF">▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬</font><br>
+  <font color="#FFFFFF" style="font-size:18px"><b>OFFICIAL SCRIPT BY:</b></font><br>
+  <font color="#00A2FF" style="font-size:24px"><b>PT INDUSTRI KREATIF DIGITAL</b></font><br>
+  <font color="#888888"><i>Innovation & Secure Connectivity Solutions</i></font><br>
+  <font color="#0044FF">▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬</font><br>
 
-  <font color="#FFD700" style="font-size:20px"><b>★ DiwanTunneling ★</b></font><br>
+  <font color="#FFD700"><b>💎 DIWAN TUNNELING PREMIUM 💎</b></font><br>
+  <font color="#00FFCC"><b>INDONESIA SERVER LIST:</b></font><br>
+  <font color="#FFFFFF">ID-OVH • ID-BIZNET • ID-TELKOM • ID-AWS</font><br>
+  <font color="#FFFFFF"><i>High-Performance & Low Latency Architecture</i></font><br>
 
-  <font color="#FF4444"><b>• TERM OF SERVICE •</b></font><br>
-  <font color="#00DDFF">✘  DDOS</font><br>
-  <font color="#00BBFF">✘  CARDING</font><br>
-  <font color="#FF5599">✘ TORRENT</font><br>
-  <font color="#FF0066">✘ MULTI LOGIN</font><br>
+  <br>
+  <font color="#FF4444"><b>⛔ STRICTLY PROHIBITED ⛔</b></font><br>
+  <font color="#CCCCCC">NO DDOS • NO CARDING • NO TORRENT • NO MULTI-LOGIN</font><br>
+  <font color="#0044FF">▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬</font><br>
 
-  <br><font color="#CCFF00"><b>🔐 Order Premium:</b></font>
-  <br><font color="#00FF99">💬 Telegram:</font>
-  <font color="#FFFFFF">t.me/diwanvpn</font>
-  <br><font color="#00FF99">📞 WhatsApp:</font>
-  <font color="#FFFFFF">wa.me/6281312868913</font>
-  <br><font color="#4B00F7">✶</font><font color="#6900E0">✦</font><font color="#8600C9">✶</font>
-  <font color="#A400B2">✦</font><font color="#C20096">✦</font><font color="#D1007F">✦</font>
+  <font color="#CCFF00"><b>💬 24/7 CUSTOMER SUPPORT:</b></font><br>
+  <font color="#00BBFF"><b>Telegram:</b></font> <font color="#FFFFFF">@diwanvpn</font><br>
+  <font color="#00FF99"><b>WhatsApp:</b></font> <font color="#FFFFFF">+62 813-1286-8913</font><br>
+  <font color="#0044FF">▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬</font>
 </p>
