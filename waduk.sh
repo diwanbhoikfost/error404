@@ -744,12 +744,12 @@ PW_DEFAULT() {
     clear
     print_install "Configuring SSH & Password Policy"
 
-    local password_url="https://raw.githubusercontent.com/yansyntax/yan2/main/configure/password"
+    local password_url="${WORKING_LINK}configure/password"
     (wget -q -O /etc/pam.d/common-password "$password_url") & loading $! "Downloading password policy"
     chmod 644 /etc/pam.d/common-password
 
     DEBIAN_FRONTEND=noninteractive dpkg-reconfigure keyboard-configuration >/dev/null 2>&1
-
+}
     debconf-set-selections <<EOF
 keyboard-configuration keyboard-configuration/layout select English
 keyboard-configuration keyboard-configuration/layoutcode string us
