@@ -111,3 +111,152 @@ is_root() {
         exit 1
     fi
 }
+# ══════════════════════════════════════════════
+#              INITIAL BANNER
+# ══════════════════════════════════════════════
+clear
+echo ""
+echo -e "$LINE"
+echo -e "  ${CYAN}▌${NC}  ${BOLD}${WHITE}  LUNATIC TUNNELING — PACKETS INSTALLER${NC}"
+echo -e "$LINE"
+echo -e "    ${CYAN}➤${NC}  ${WHITE}Update & upgrade system packages${NC}"
+echo -e "    ${CYAN}➤${NC}  ${WHITE}Install required dependencies${NC}"
+echo -e "$LINE"
+echo ""
+
+sleep 2
+
+(apt update -y >/dev/null 2>&1) & loading $! "Updating package lists"
+(apt upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" >/dev/null 2>&1) & loading $! "Upgrading installed packages"
+(apt install git -y >/dev/null 2>&1) & loading $! "Installing git"
+(apt install at -y >/dev/null 2>&1) & loading $! "Installing at"
+(apt install curl -y >/dev/null 2>&1) & loading $! "Installing curl"
+(apt install wget -y >/dev/null 2>&1) & loading $! "Installing wget"
+(apt install jq -y >/dev/null 2>&1) & loading $! "Installing jq"
+(apt install lolcat -y >/dev/null 2>&1) & loading $! "Installing lolcat"
+(apt install ruby rubygems -y >/dev/null 2>&1) & loading $! "Installing ruby & rubygems"
+(gem install lolcat --no-document >/dev/null 2>&1) & loading $! "Installing lolcat gem"
+(apt install dos2unix -y >/dev/null 2>&1) & loading $! "Installing dos2unix"
+(apt install python-is-python3 -y >/dev/null 2>&1) & loading $! "Installing python-is-python3"
+(apt install python3 -y >/dev/null 2>&1) & loading $! "Installing python3"
+(apt install socat -y >/dev/null 2>&1) & loading $! "Installing socat"
+(apt install netcat -y >/dev/null 2>&1) & loading $! "Installing netcat"
+(apt install ufw -y >/dev/null 2>&1) & loading $! "Installing ufw"
+(apt install telnet -y >/dev/null 2>&1) & loading $! "Installing telnet"
+(apt install speedtest-cli -y >/dev/null 2>&1) & loading $! "Installing speedtest-cli"
+
+# buat ubuntu 22 dan 25
+(apt install netcat-traditional -y >/dev/null 2>&1) & loading $! "Installing netcat-traditional"
+(apt install netcat-openbsd -y >/dev/null 2>&1) & loading $! "Installing netcat-openbsd"
+(apt install nodejs -y >/dev/null 2>&1) & loading $! "Installing nodejs"
+(apt install npm -y >/dev/null 2>&1 && npm install -g pm2 >/dev/null 2>&1) & loading $! "Installing npm + pm2"
+
+IPVPS=$(curl -sS ipv4.icanhazip.com)
+export IP=$(curl -sS icanhazip.com)
+
+# Deteksi interface jaringan utama (dipakai oleh vnSTATS_SETUP)
+NET=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
+[[ -z "$NET" ]] && NET="eth0"
+
+# GIT REPO
+WORKING_LINK="https://raw.githubusercontent.com/yansyntax/yan2/main/"
+
+function ADD_CEEF() {
+EMAILCF="newvpnlunatix293@gmail.com"
+KEYCF="88a8619c3dec8a0c9a14cf353684036108844"
+echo "$EMAILCF" > /usr/bin/emailcf
+echo "$KEYCF" > /usr/bin/keycf
+}
+
+function check_os_version() {
+    local os_id os_version
+
+    os_id=$(grep -w ID /etc/os-release | cut -d= -f2 | tr -d '"')
+    os_version=$(grep -w VERSION_ID /etc/os-release | cut -d= -f2 | tr -d '"')
+
+    case "$os_id" in
+        ubuntu)
+            case "$os_version" in
+                20.04|22.04|22.10|23.04|24.04|24.10|25.04|25.10)
+                    print_ok "OS Supported: Ubuntu $os_version"
+                    ;;
+                *)
+                    print_error "Ubuntu $os_version is not supported."
+                    exit 1
+                    ;;
+            esac
+            ;;
+        debian)
+            case "$os_version" in
+                10|11|12|13)
+                    print_ok "OS Supported: Debian $os_version"
+                    ;;
+                *)
+                    print_error "Debian $os_version is not supported."
+                    exit 1
+                    ;;
+            esac
+            ;;
+        *)
+            print_error "OS ($os_id $os_version) is not supported."
+            exit 1
+            ;;
+    esac
+}
+
+if [[ $(uname -m) == "x86_64" ]]; then
+    print_ok "Architecture Supported: $(uname -m)"
+else
+    print_error "Architecture Not Supported: $(uname -m)"
+    exit 1
+fi
+
+# Cek versi OS
+check_os_version
+
+if [ "${EUID}" -ne 0 ]; then
+   print_error "You need to run this script as root"
+   exit 1
+fi
+if [ "$(systemd-detect-virt)" == "openvz" ]; then
+   print_error "OpenVZ is not supported"
+   exit 1
+fi
+
+# ══════════════════════════════════════════════
+#              PERSIAPAN SISTEM XRAY
+# ══════════════════════════════════════════════
+print_install "Creating Directories & Xray Configuration"
+
+mkdir -p /etc/xray
+curl -s ifconfig.me > /etc/xray/ipvps
+touch /etc/xray/domain
+
+mkdir -p /var/log/xray
+chown www-data:www-data /var/log/xray
+chmod +x /var/log/xray
+
+echo ""
+echo -e "$LINE"
+echo -e "  ${GOLD}${BOLD}Creating Log Files${NC}"
+echo -e "$LINE"
+echo -e "    ${CYAN}➤${NC}  /var/log/xray/access.log"
+echo -e "    ${CYAN}➤${NC}  /var/log/xray/error.log"
+echo -e "    ${CYAN}➤${NC}  /var/log/auth.log"
+echo -e "    ${CYAN}➤${NC}  /var/log/kern.log"
+echo -e "    ${CYAN}➤${NC}  /var/log/mail.log"
+echo -e "    ${CYAN}➤${NC}  /var/log/user.log"
+echo -e "    ${CYAN}➤${NC}  /var/log/cron.log"
+echo -e "$LINE"
+
+touch /var/log/xray/access.log
+touch /var/log/xray/error.log
+touch /var/log/auth.log
+touch /var/log/kern.log
+touch /var/log/mail.log
+touch /var/log/user.log
+touch /var/log/cron.log
+
+mkdir -p /var/lib/luna >/dev/null 2>&1
+
+print_success "Log files created successfully"
