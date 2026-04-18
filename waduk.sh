@@ -782,8 +782,8 @@ TimeoutSec=0
 RemainAfterExit=yes
 SysVStartPriority=99
 
-[Install]
-WantedBy=multi-user.target
+    [Install]
+    WantedBy=multi-user.target
 EOF
 
     cat > /etc/rc.local <<EOF
@@ -798,12 +798,11 @@ EOF
 
     echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
     ln -sf /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
-    sed -i 's/^AcceptEnv/#AcceptEnv/' /etc/ssh/sshd_config
+    sed -i 's/^#AcceptEnv/AcceptEnv/' /etc/ssh/sshd_config
     systemctl restart ssh >/dev/null 2>&1
 
     print_success "SSH config & Password Policy"
 }
-
 # ══════════════════════════════════════════════
 #              LIMIT HANDLER
 # ══════════════════════════════════════════════
