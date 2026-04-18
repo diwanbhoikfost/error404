@@ -675,3 +675,306 @@ local main_dirs=(
     touch /etc/{ssh,vmess,vless,trojan}.db
     echo "IP=" > /var/lib/luna/ipvps.conf
 }
+# ══════════════════════════════════════════════
+#              XRAY SETUP
+# ══════════════════════════════════════════════
+XRAY_SETUP() {
+    clear
+    print_install "Installing Xray Core v26"
+
+    local domainSock_dir="/run/xray"
+    [[ ! -d $domainSock_dir ]] && mkdir -p "$domainSock_dir"
+    chown www-data:www-data "$domainSock_dir"
+
+    (bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data >/dev/null 2>&1) & loading $! "Installing Xray Core"
+    (wget -q -O /etc/xray/config.json "${WORKING_LINK}configure/config.json") & loading $! "Downloading Xray config"
+    (wget -q -O /etc/systemd/system/runn.service "${WORKING_LINK}configure/runn.service") & loading $! "Downloading runn.service"
+
+    if [[ ! -f /etc/xray/domain ]]; then
+        print_error "Domain file not found at /etc/xray/domain"
+        return 1
+    fi
+    local domain=$(cat /etc/xray/domain)
+    local IPVS=$(cat /etc/xray/ipvps)
+
+    print_success "Xray Core v26"
+    clear
+
+    curl -s ipinfo.io/city >> /etc/xray/city
+    curl -s ipinfo.io/org | cut -d " " -f 2- >> /etc/xray/isp
+
+    clear
+    print_install "Downloading Config & Service Files"
+
+    (wget -q -O /etc/haproxy/haproxy.cfg "${WORKING_LINK}configure/haproxy.cfg") & loading $! "Downloading haproxy.cfg"
+    (wget -q -O /etc/nginx/conf.d/xray.conf "${WORKING_LINK}configure/xray.conf") & loading $! "Downloading xray.conf"
+    (curl -s "${WORKING_LINK}configure/nginx.conf" > /etc/nginx/nginx.conf) & loading $! "Downloading nginx.conf"
+
+    sed -i "s/xxx/${domain}/g" /etc/haproxy/haproxy.cfg
+    sed -i "s/xxx/${domain}/g" /etc/nginx/conf.d/xray.conf
+
+    cat /etc/xray/xray.crt /etc/xray/xray.key > /etc/haproxy/hap.pem
+
+    cat > /etc/systemd/system/xray.service <<EOF
+[Unit]
+Description=Xray Service
+After=network.target
+[Service]
+User=www-data
+ExecStart=/usr/local/bin/xray run -config /etc/xray/config.json
+Restart=on-failure
+RestartPreventExitStatus=23
+LimitNPROC=10000
+LimitNOFILE=1000000
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    chmod +x /etc/systemd/system/runn.service
+    rm -rf /etc/systemd/system/xray.service.d
+
+    print_success "Xray config, service and configs"
+}
+
+# ══════════════════════════════════════════════
+#              PASSWORD DEFAULT SETUP
+# ══════════════════════════════════════════════
+PW_DEFAULT() {
+    clear
+    print_install "Configuring SSH & Password Policy"
+
+    local password_url="https://raw.githubusercontent.com/yansyntax/yan2/main/configure/password"
+    (wget -q -O /etc/pam.d/common-password "$password_url") & loading $! "Downloading password policy"
+    chmod 644 /etc/pam.d/common-password
+
+    DEBIAN_FRONTEND=noninteractive dpkg-reconfigure keyboard-configuration >/dev/null 2>&1
+
+    debconf-set-selections <<EOF
+keyboard-configuration keyboard-configuration/layout select English
+keyboard-configuration keyboard-configuration/layoutcode string us
+keyboard-configuration keyboard-configuration/model select Generic 105-key (Intl) PC
+keyboard-configuration keyboard-configuration/modelcode string pc105
+keyboard-configuration keyboard-configuration/variant select English
+keyboard-configuration keyboard-configuration/variantcode string
+keyboard-configuration keyboard-configuration/store_defaults_in_debconf_db boolean true
+keyboard-configuration keyboard-configuration/altgr select The default for the keyboard layout
+keyboard-configuration keyboard-configuration/compose select No compose key
+keyboard-configuration keyboard-configuration/switch select No temporary switch
+keyboard-configuration keyboard-configuration/toggle select No toggling
+keyboard-configuration keyboard-configuration/ctrl_alt_bksp boolean false
+keyboard-configuration keyboard-configuration/unsupported_config_layout boolean true
+keyboard-configuration keyboard-configuration/unsupported_config_options boolean true
+keyboard-configuration keyboard-configuration/unsupported_layout boolean true
+keyboard-configuration keyboard-configuration/unsupported_options boolean true
+EOF
+
+    cat > /etc/systemd/system/rc-local.service <<EOF
+[Unit]
+Description=/etc/rc.local compatibility
+ConditionPathExists=/etc/rc.local
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/etc/rc.local start
+TimeoutSec=0
+RemainAfterExit=yes
+SysVStartPriority=99
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    cat > /etc/rc.local <<EOF
+#!/bin/bash
+echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+exit 0
+EOF
+
+    chmod +x /etc/rc.local
+    systemctl enable rc-local.service >/dev/null 2>&1
+    systemctl start rc-local.service >/dev/null 2>&1
+
+    echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+    ln -sf /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
+    sed -i 's/^AcceptEnv/#AcceptEnv/' /etc/ssh/sshd_config
+    systemctl restart ssh >/dev/null 2>&1
+
+    print_success "SSH config & Password Policy"
+}
+
+
+# ══════════════════════════════════════════════
+#              LIMIT HANDLER
+# ══════════════════════════════════════════════
+LIMIT_HANDLER() {
+    clear
+    print_install "Installing LimitHandler"
+
+    (wget -q https://raw.githubusercontent.com/yansyntax/yan2/main/LimitHandler/install.sh && chmod +x install.sh && ./install.sh >/dev/null 2>&1) & loading $! "Installing LimitHandler"
+
+    mkdir -p /usr/local/lunatic
+    (wget -q -O /usr/local/lunatic/udp-mini "${WORKING_LINK}configure/udp-mini") & loading $! "Downloading udp-mini binary"
+    chmod +x /usr/local/lunatic/udp-mini
+
+    for i in 1 2 3; do
+        (wget -q -O /etc/systemd/system/udp-mini-$i.service "${WORKING_LINK}configure/udp-mini-$i.service") & loading $! "Downloading udp-mini-$i service"
+        systemctl daemon-reload >/dev/null 2>&1
+        systemctl enable --now udp-mini-$i >/dev/null 2>&1
+    done
+
+    print_success "LimitHandler installed"
+}
+# ══════════════════════════════════════════════
+#              SSHD SETUP
+# ══════════════════════════════════════════════
+SSHD_SETUP(){
+    clear
+    print_install "Configuring SSHD"
+
+    (wget -q -O /etc/ssh/sshd_config "${WORKING_LINK}configure/sshd" >/dev/null 2>&1) & loading $! "Downloading SSHD config"
+    chmod 700 /etc/ssh/sshd_config
+
+    (/etc/init.d/ssh restart >/dev/null 2>&1 && systemctl restart ssh >/dev/null 2>&1) & loading $! "Restarting SSH"
+
+    print_success "SSHD configured"
+}
+
+# ══════════════════════════════════════════════
+#              DROPBEAR SETUP
+# ══════════════════════════════════════════════
+DROPBEAR_SETUP(){
+    clear
+    print_install "Installing Dropbear v2019.78"
+
+    (apt install dropbear -y >/dev/null 2>&1) & loading $! "Installing Dropbear"
+    (wget -q ${WORKING_LINK}install-dropbear.sh && chmod +x install-dropbear.sh && ./install-dropbear.sh >/dev/null 2>&1) & loading $! "Running Dropbear installer"
+    (wget -q -O /etc/default/dropbear "${WORKING_LINK}configure/dropbear.conf") & loading $! "Downloading Dropbear config"
+
+    chmod +x /etc/default/dropbear
+    chmod 600 /etc/default/dropbear
+    chmod 755 /usr/sbin/dropbear
+
+    (/etc/init.d/dropbear restart >/dev/null 2>&1) & loading $! "Restarting Dropbear"
+
+    print_success "Dropbear installed"
+}
+
+# ══════════════════════════════════════════════
+#              VNSTATS SETUP
+# ══════════════════════════════════════════════
+vnSTATS_SETUP(){
+    clear
+    print_install "Installing Bandwidth Monitor — Vnstat"
+
+    (apt -y install vnstat >/dev/null 2>&1) & loading $! "Installing vnstat"
+    /etc/init.d/vnstat restart >/dev/null 2>&1
+
+    (apt -y install libsqlite3-dev >/dev/null 2>&1) & loading $! "Installing libsqlite3-dev"
+
+    (wget -q https://humdi.net/vnstat/vnstat-2.6.tar.gz) & loading $! "Downloading vnstat 2.6 source"
+    (tar zxvf vnstat-2.6.tar.gz >/dev/null 2>&1) & loading $! "Extracting vnstat source"
+
+    cd vnstat-2.6
+    (./configure --prefix=/usr --sysconfdir=/etc >/dev/null 2>&1 && make >/dev/null 2>&1 && make install >/dev/null 2>&1) & loading $! "Compiling and installing vnstat"
+    cd
+
+    vnstat -u -i $NET >/dev/null 2>&1
+    sed -i "s/Interface \"eth0\"/Interface \"$NET\"/g" /etc/vnstat.conf
+    chown vnstat:vnstat /var/lib/vnstat -R
+
+    systemctl enable vnstat >/dev/null 2>&1
+    /etc/init.d/vnstat restart >/dev/null 2>&1
+
+    rm -f /root/vnstat-2.6.tar.gz
+    rm -rf /root/vnstat-2.6
+
+    print_success "Vnstat installed"
+}
+
+# ══════════════════════════════════════════════
+#              OPENVPN SETUP
+# ══════════════════════════════════════════════
+OPVPN_SETUP() {
+    clear
+    print_install "Installing OpenVPN"
+
+    (wget -q ${WORKING_LINK}configure/openvpn && chmod +x openvpn && ./openvpn >/dev/null 2>&1) & loading $! "Installing OpenVPN"
+    (/etc/init.d/openvpn restart >/dev/null 2>&1) & loading $! "Restarting OpenVPN"
+
+    print_success "OpenVPN installed"
+}
+
+
+# ══════════════════════════════════════════════
+#              RCLONE SETUP
+# ══════════════════════════════════════════════
+RCLONE_SETUP() {
+    clear
+    print_install "Installing Wondershaper & Rclone"
+
+    (apt install rclone -y >/dev/null 2>&1) & loading $! "Installing rclone"
+
+    (cd /bin && git clone https://github.com/LunaticTunnel/wondershaper.git >/dev/null 2>&1 && \
+     cd wondershaper && sudo make install >/dev/null 2>&1 && cd ~ && rm -rf wondershaper) & loading $! "Installing Wondershaper"
+
+    echo > /home/files
+
+    (apt install msmtp-mta ca-certificates bsd-mailx -y >/dev/null 2>&1) & loading $! "Installing mail tools"
+
+    cat <<EOF > /etc/msmtprc
+defaults
+tls on
+tls_starttls on
+tls_trust_file /etc/ssl/certs/ca-certificates.crt
+account default
+host smtp.gmail.com
+port 587
+auth on
+user oceantestdigital@gmail.com
+from oceantestdigital@gmail.com
+password jokerman77
+logfile ~/.msmtp.log
+EOF
+
+    chown -R www-data:www-data /etc/msmtprc
+
+    (wget -q -O /etc/ipserver "${WORKING_LINK}configure/ipserver" && bash /etc/ipserver >/dev/null 2>&1) & loading $! "Downloading & running ipserver"
+
+    print_success "Wondershaper and ipserver"
+}
+
+
+# ══════════════════════════════════════════════
+#              SWAP RAM SETUP
+# ══════════════════════════════════════════════
+SWAPRAM_SETUP(){
+    clear
+    print_install "Setting Up Swap RAM 2 GB + TCP BBR"
+
+    gotop_latest="$(curl -s https://api.github.com/repos/xxxserxxx/gotop/releases | grep tag_name | sed -E 's/.*"v(.*)".*/\1/' | head -n 1)"
+    gotop_link="https://github.com/xxxserxxx/gotop/releases/download/v$gotop_latest/gotop_v${gotop_latest}_linux_amd64.deb"
+
+    (curl -sL "$gotop_link" -o /tmp/gotop.deb && dpkg -i /tmp/gotop.deb >/dev/null 2>&1) & loading $! "Installing gotop monitor"
+
+    (dd if=/dev/zero of=/swapfile bs=1M count=2048 >/dev/null 2>&1 && \
+     mkswap /swapfile >/dev/null 2>&1 && \
+     chown root:root /swapfile && \
+     chmod 600 /swapfile && \
+     swapon /swapfile >/dev/null 2>&1) & loading $! "Creating 2 GB swap"
+
+    (fallocate -l 1G /swapfile2 && \
+     chmod 600 /swapfile2 && \
+     mkswap /swapfile2 >/dev/null 2>&1 && \
+     swapon /swapfile2 >/dev/null 2>&1) & loading $! "Creating 1 GB swap"
+
+    sed -i '$ i\/swapfile swap swap defaults 0 0' /etc/fstab
+
+    chronyd -q 'server 0.id.pool.ntp.org iburst' >/dev/null 2>&1
+    chronyc sourcestats -v >/dev/null 2>&1
+    chronyc tracking -v >/dev/null 2>&1
+
+    (wget -q ${WORKING_LINK}configure/bbr.sh && chmod +x bbr.sh && ./bbr.sh >/dev/null 2>&1) & loading $! "Installing TCP BBR"
+
+    print_success "Swap RAM 2 GB + TCP BBR"
+}
