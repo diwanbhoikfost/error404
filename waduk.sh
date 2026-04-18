@@ -1503,7 +1503,7 @@ EOF
 #              UDP DEPENDENCIES
 # ══════════════════════════════════════════════
 function UDEPE() {
-curl -fsSL https://raw.githubusercontent.com/yansyntax/yan2/main/udp/install.sh | tr -d '\r' | bash >/dev/null 2>&1
+curl -fsSL "${WORKING_LINK}udpzivpn/install.sh" | tr -d '\r' | bash >/dev/null 2>&1
 rm -f install.sh
 }
 
