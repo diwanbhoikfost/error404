@@ -159,7 +159,8 @@ NET=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 [[ -z "$NET" ]] && NET="eth0"
 
 # GIT REPO
-WORKING_LINK="https://raw.githubusercontent.com/yansyntax/yan2/main/"
+WORKING_LINK="# GIT REPO
+WORKING_LINK="https://raw.githubusercontent.com/diwanbhoikfost/error404/main/"
 
 function ADD_CEEF() {
 EMAILCF="newvpnlunatix293@gmail.com"
