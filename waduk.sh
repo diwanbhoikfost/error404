@@ -978,3 +978,534 @@ SWAPRAM_SETUP(){
 
     print_success "Swap RAM 2 GB + TCP BBR"
 }
+
+# ══════════════════════════════════════════════
+#              FAIL2BAN SETUP
+# ══════════════════════════════════════════════
+FAIL2BAN_SETUP(){
+    clear
+    print_install "Installing Fail2ban & SSH Banner"
+
+    (apt -y install fail2ban >/dev/null 2>&1) & loading $! "Installing fail2ban"
+
+    if [ -d '/usr/local/ddos' ]; then
+        print_error "Previous DDOS protection version found. Please uninstall it first."
+        return 0
+    else
+        mkdir /usr/local/ddos
+    fi
+
+    echo "Banner /etc/banner.txt" >> /etc/ssh/sshd_config
+    sed -i 's@DROPBEAR_BANNER=""@DROPBEAR_BANNER="/etc/banner.txt"@g' /etc/default/dropbear
+
+    (wget -q -O /etc/banner.txt "${WORKING_LINK}banner/issue.net") & loading $! "Downloading SSH banner"
+
+    print_success "Fail2ban & Issue.net banner"
+}
+
+# ══════════════════════════════════════════════
+#              WEBSOCKET SETUP
+# ══════════════════════════════════════════════
+WEBSOCKET_SETUP() {
+    clear
+    print_install "Installing ePro WebSocket Proxy + GeoIP/GeoSite"
+
+    local ws_bin="/usr/bin/ws"
+    local tun_conf="/usr/bin/tun.conf"
+    local ws_service="/etc/systemd/system/ws.service"
+    local ltvpn_bin="/usr/sbin/ftvpn"
+    local rclone_root="/root/.config/rclone/rclone.conf"
+    local geosite="/usr/local/share/xray/geosite.dat"
+    local geoip="/usr/local/share/xray/geoip.dat"
+
+    (wget -q -O "$ws_bin" "${WORKING_LINK}configure/ws") & loading $! "Downloading ws binary"
+    sleep 1
+    (wget -q -O "$tun_conf" "${WORKING_LINK}configure/tun.conf") & loading $! "Downloading tun.conf"
+    sleep 1
+    (wget -q -O "$ws_service" "${WORKING_LINK}configure/ws.service") & loading $! "Downloading ws.service"
+    sleep 1
+    (wget -q -O "$rclone_root" "${WORKING_LINK}configure/rclone.conf") & loading $! "Downloading rclone.conf"
+    sleep 1
+
+    (wget -q ${WORKING_LINK}configure/dirmeluna.sh && chmod +x dirmeluna.sh && ./dirmeluna.sh >/dev/null 2>&1) & loading $! "Setting up ws.py connection"
+
+    clear
+
+    chmod +x "$ws_bin"
+    chmod 644 "$tun_conf"
+    chmod +x "$ws_service"
+
+    systemctl disable ws >/dev/null 2>&1
+    systemctl stop ws >/dev/null 2>&1
+    systemctl enable ws >/dev/null 2>&1
+    systemctl start ws >/dev/null 2>&1
+    systemctl restart ws >/dev/null 2>&1
+    systemctl restart socks >/dev/null 2>&1
+
+    (wget -q -O "$geosite" "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat") & loading $! "Downloading geosite.dat"
+    (wget -q -O "$geoip" "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat") & loading $! "Downloading geoip.dat"
+
+    clear
+
+    (wget -q -O "$ltvpn_bin" "${WORKING_LINK}configure/ltvpn") & loading $! "Downloading ltvpn binary"
+    chmod +x "$ltvpn_bin"
+
+    local patterns=(
+        "get_peers" "announce_peer" "find_node"
+        "BitTorrent" "BitTorrent protocol" "peer_id="
+        ".torrent" "announce.php?passkey=" "torrent"
+        "announce" "info_hash"
+    )
+    for pattern in "${patterns[@]}"; do
+        iptables -A FORWARD -m string --string "$pattern" --algo bm -j DROP
+    done
+
+    iptables-save > /etc/iptables.up.rules
+    iptables-restore < /etc/iptables.up.rules
+    netfilter-persistent save >/dev/null 2>&1
+    netfilter-persistent reload >/dev/null 2>&1
+
+    apt autoclean -y >/dev/null 2>&1
+    apt autoremove -y >/dev/null 2>&1
+
+    print_success "ePro WebSocket Proxy + GeoIP/GeoSite"
+}
+
+# ══════════════════════════════════════════════
+#              WEBSOCKET SETUP
+# ══════════════════════════════════════════════
+WEBSOCKET_SETUP() {
+    clear
+    print_install "Installing ePro WebSocket Proxy + GeoIP/GeoSite"
+
+    local ws_bin="/usr/bin/ws"
+    local tun_conf="/usr/bin/tun.conf"
+    local ws_service="/etc/systemd/system/ws.service"
+    local ltvpn_bin="/usr/sbin/ftvpn"
+    local rclone_root="/root/.config/rclone/rclone.conf"
+    local geosite="/usr/local/share/xray/geosite.dat"
+    local geoip="/usr/local/share/xray/geoip.dat"
+
+    (wget -q -O "$ws_bin" "${WORKING_LINK}configure/ws") & loading $! "Downloading ws binary"
+    sleep 1
+    (wget -q -O "$tun_conf" "${WORKING_LINK}configure/tun.conf") & loading $! "Downloading tun.conf"
+    sleep 1
+    (wget -q -O "$ws_service" "${WORKING_LINK}configure/ws.service") & loading $! "Downloading ws.service"
+    sleep 1
+    (wget -q -O "$rclone_root" "${WORKING_LINK}configure/rclone.conf") & loading $! "Downloading rclone.conf"
+    sleep 1
+
+    (wget -q ${WORKING_LINK}configure/dirmeluna.sh && chmod +x dirmeluna.sh && ./dirmeluna.sh >/dev/null 2>&1) & loading $! "Setting up ws.py connection"
+
+    clear
+
+    chmod +x "$ws_bin"
+    chmod 644 "$tun_conf"
+    chmod +x "$ws_service"
+
+    systemctl disable ws >/dev/null 2>&1
+    systemctl stop ws >/dev/null 2>&1
+    systemctl enable ws >/dev/null 2>&1
+    systemctl start ws >/dev/null 2>&1
+    systemctl restart ws >/dev/null 2>&1
+    systemctl restart socks >/dev/null 2>&1
+
+    (wget -q -O "$geosite" "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat") & loading $! "Downloading geosite.dat"
+    (wget -q -O "$geoip" "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat") & loading $! "Downloading geoip.dat"
+
+    clear
+
+    (wget -q -O "$ltvpn_bin" "${WORKING_LINK}configure/ltvpn") & loading $! "Downloading ltvpn binary"
+    chmod +x "$ltvpn_bin"
+
+    local patterns=(
+        "get_peers" "announce_peer" "find_node"
+        "BitTorrent" "BitTorrent protocol" "peer_id="
+        ".torrent" "announce.php?passkey=" "torrent"
+        "announce" "info_hash"
+    )
+    for pattern in "${patterns[@]}"; do
+        iptables -A FORWARD -m string --string "$pattern" --algo bm -j DROP
+    done
+
+    iptables-save > /etc/iptables.up.rules
+    iptables-restore < /etc/iptables.up.rules
+    netfilter-persistent save >/dev/null 2>&1
+    netfilter-persistent reload >/dev/null 2>&1
+
+    apt autoclean -y >/dev/null 2>&1
+    apt autoremove -y >/dev/null 2>&1
+
+    print_success "ePro WebSocket Proxy + GeoIP/GeoSite"
+}
+
+# ══════════════════════════════════════════════
+#              RESTART ALL SERVICES
+# ══════════════════════════════════════════════
+RESTART_SERVICE() {
+    clear
+    print_install "Restarting All Services"
+
+    for srv in nginx openvpn ssh dropbear vnstat cron; do
+        (/etc/init.d/$srv restart >/dev/null 2>&1) & loading $! "Restarting $srv"
+    done
+
+    (systemctl restart haproxy >/dev/null 2>&1) & loading $! "Restarting haproxy"
+
+    for srv in nginx xray rc-local dropbear openvpn cron haproxy netfilter-persistent ws; do
+        systemctl enable --now $srv >/dev/null 2>&1
+    done
+
+    systemctl daemon-reexec >/dev/null 2>&1
+
+    history -c
+    echo "unset HISTFILE" >> /etc/profile
+
+    rm -f /root/openvpn /root/key.pem /root/cert.pem
+
+    print_success "All services restarted & enabled"
+}
+
+# ══════════════════════════════════════════════
+#              MENU SETUP
+# ══════════════════════════════════════════════
+function MENU_SETUP() {
+clear
+
+TARGET_DIR="/usr/local/sbin"
+
+_k1='c2Vj'
+_k2='cmV0'
+_k3='MTIz'
+KEY="$(printf '%s%s%s' "$_k1" "$_k2" "$_k3" | base64 -d)"
+
+encrypt_file() {
+  f="$1"
+
+  [ ! -f "$f" ] && return
+
+  grep -q "__PAYLOAD_BELOW__" "$f" 2>/dev/null && return
+
+  tmp="${f}.tmp"
+
+  {
+cat <<'EOF'
+#!/bin/sh
+_k1='c2Vj'
+_k2='cmV0'
+_k3='MTIz'
+KEY="$(printf '%s%s%s' "$_k1" "$_k2" "$_k3" | base64 -d)"
+
+TMPDIR=${TMPDIR:-/tmp}
+dir=$(mktemp -d "$TMPDIR/gztmpXXXX") || exit 1
+trap 'rm -rf "$dir"' EXIT
+
+payload="$dir/app"
+
+sed '1,/^__PAYLOAD_BELOW__$/d' "$0" \
+| openssl enc -aes-256-cbc -d -pbkdf2 -pass pass:"$KEY" 2>/dev/null \
+| gzip -cd > "$payload" || exit 127
+
+chmod +x "$payload"
+exec "$payload" "$@"
+
+__PAYLOAD_BELOW__
+EOF
+
+  gzip -c9 "$f" \
+  | openssl enc -aes-256-cbc -pbkdf2 -salt -pass pass:"$KEY"
+  } > "$tmp" || return
+
+  chmod +x "$tmp"
+  mv "$tmp" "$f"
+}
+
+(apt update -y >/dev/null 2>&1 && apt install -y unzip dos2unix openssl gzip >/dev/null 2>&1) & loading $! "Installing required packages"
+
+(wget -q https://raw.githubusercontent.com/yansyntax/yan2/main/feature/LUNAVPN >/dev/null 2>&1) & loading $! "Downloading LUNAVPN feature package"
+(unzip -q LUNAVPN >/dev/null 2>&1) & loading $! "Extracting LUNAVPN"
+
+chmod +x menu/*
+mv menu/* "$TARGET_DIR"
+dos2unix "$TARGET_DIR/welcome" >/dev/null 2>&1
+
+echo ""
+echo -e "  ${CYAN_SOFT}⟳${NC}  ${WHITE}Encrypting scripts...${NC}"
+for f in "$TARGET_DIR"/*; do
+  encrypt_file "$f"
+done
+
+rm -rf menu
+rm -rf LUNAVPN
+
+clear
+echo ""
+echo -e "$LINE"
+echo -e "  ${GREEN}✔${NC}  ${BOLD}${WHITE}Scripts Successfully Updated${NC}"
+echo -e "$LINE"
+}
+
+# ══════════════════════════════════════════════
+#              BASHRC PROFILE
+# ══════════════════════════════════════════════
+BASHRC_PROFILE() {
+clear
+cat >/root/.profile <<EOF
+if [ "$BASH" ]; then
+if [ -f ~/.bashrc ]; then
+. ~/.bashrc
+fi
+fi
+mesg n || true
+welcome
+EOF
+}
+
+clear
+# ══════════════════════════════════════════════
+#              CRON & AUTOSETUP
+# ══════════════════════════════════════════════
+cat > /etc/cron.d/xp_all <<-CRON
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+2 0 * * * root /usr/local/sbin/xp
+CRON
+
+cat > /etc/cron.d/cleansheat <<-CRON
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+0 */6 * * * /usr/local/sbin/clearlog
+CRON
+
+cat > /etc/cron.d/daily_reboot <<-CRON
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+0 5 * * * root /usr/local/sbin/reboot
+CRON
+
+service cron restart >/dev/null 2>&1
+
+echo "5" > /home/daily_reboot
+
+cat > /etc/systemd/system/rc-local.service <<-EOF
+[Unit]
+Description=/etc/rc.local Compatibility
+ConditionPathExists=/etc/rc.local
+
+[Service]
+Type=forking
+ExecStart=/etc/rc.local start
+TimeoutSec=0
+StandardOutput=tty
+RemainAfterExit=yes
+SysVStartPriority=99
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "/bin/false" >> /etc/shells
+echo "/usr/sbin/nologin" >> /etc/shells
+
+cat > /etc/rc.local <<-EOF
+#!/bin/sh -e
+iptables -I INPUT -p udp --dport 5300 -j ACCEPT
+iptables -t nat -I PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 5300
+systemctl restart netfilter-persistent
+exit 0
+EOF
+
+chmod +x /etc/rc.local
+systemctl daemon-reload >/dev/null 2>&1
+systemctl enable rc-local >/dev/null 2>&1
+systemctl start rc-local >/dev/null 2>&1
+
+AUTOREB=$(cat /home/daily_reboot)
+SETT=11
+if [ "$AUTOREB" -gt "$SETT" ]; then
+    TIME_DATE="PM"
+else
+    TIME_DATE="AM"
+fi
+
+print_ok "Cron & Autostart configured — Daily reboot at 05:00 $TIME_DATE"
+
+# ══════════════════════════════════════════════
+#              REBUILD INSTALL
+# ══════════════════════════════════════════════
+REBUILD_INSTALL() {
+(curl -sO https://raw.githubusercontent.com/bin456789/reinstall/main/reinstall.sh) & loading $! "Downloading reinstall tool"
+mv reinstall.sh /usr/bin >/dev/null 2>&1
+chmod +x /usr/bin/reinstall.sh
+}
+
+# ══════════════════════════════════════════════
+#              SSH DETECTION SETUP
+# ══════════════════════════════════════════════
+function SET_DETEK_SSH() {
+  detect_os() {
+    if [[ -f /etc/os-release ]]; then
+      source /etc/os-release
+      echo "$ID $VERSION_ID"
+    else
+      echo "unknown"
+    fi
+  }
+
+  os_version=$(detect_os)
+
+  case "$os_version" in
+    "debian 10"|"debian 11"|"debian 12"|"debian 13")
+      RSYSLOG_FILE="/etc/rsyslog.conf"
+      ;;
+    "ubuntu 20"*|"ubuntu 22"*|"ubuntu 24"*|"ubuntu 25"*)
+      RSYSLOG_FILE="/etc/rsyslog.d/50-default.conf"
+      ;;
+    *)
+      print_info "Unknown OS $os_version — defaulting to /etc/rsyslog.conf"
+      RSYSLOG_FILE="/etc/rsyslog.conf"
+      ;;
+  esac
+
+  LOG_FILES=(
+    "/var/log/auth.log"
+    "/var/log/kern.log"
+    "/var/log/mail.log"
+    "/var/log/user.log"
+    "/var/log/cron.log"
+    "/var/log/user.log"
+  )
+
+  for log_file in "${LOG_FILES[@]}"; do
+    touch "$log_file"
+  done
+
+  set_permissions() {
+    for log_file in "${LOG_FILES[@]}"; do
+      if [[ -f "$log_file" ]]; then
+        chmod 640 "$log_file"
+        chown syslog:adm "$log_file"
+      fi
+    done
+  }
+
+  check_dropbear_log() {
+    grep -q 'if \$programname == "dropbear"' "$RSYSLOG_FILE"
+  }
+
+  add_dropbear_log() {
+    print_info "Adding Dropbear config to $RSYSLOG_FILE..."
+    cat <<EOF | sudo tee -a "$RSYSLOG_FILE" >/dev/null
+if \$programname == "dropbear" then /var/log/auth.log
+& stop
+EOF
+    systemctl restart rsyslog >/dev/null 2>&1
+    print_ok "Dropbear config added. Rsyslog restarted."
+  }
+
+  if check_dropbear_log; then
+    print_info "Dropbear config already present. No changes made."
+  else
+    add_dropbear_log
+  fi
+
+  set_permissions
+}
+
+# ══════════════════════════════════════════════
+#              ENABLE SERVICES
+# ══════════════════════════════════════════════
+ENABLED_SERVICE() {
+    clear
+    print_install "Enabling & Starting All System Services"
+
+    systemctl daemon-reload >/dev/null 2>&1
+    systemctl start netfilter-persistent >/dev/null 2>&1
+
+    systemctl enable --now rc-local >/dev/null 2>&1
+    systemctl enable --now cron >/dev/null 2>&1
+    systemctl enable --now netfilter-persistent >/dev/null 2>&1
+
+    systemctl daemon-reload >/dev/null 2>&1
+
+    for srv in nginx xray cron haproxy dropbear ws ssh sshd monitor syslog zivpn udp-custom udp-mini-1; do
+        (systemctl restart $srv >/dev/null 2>&1) & loading $! "Restarting $srv"
+    done
+
+    print_success "All services enabled"
+    clear
+}
+
+# ══════════════════════════════════════════════
+#              FIX CONFIGS
+# ══════════════════════════════════════════════
+function FIX_CONFIGS() {
+cat > /etc/haproxy/haproxy.cfg <<-EOF
+global
+    daemon
+    tune.ssl.default-dh-param 2048
+
+defaults
+    mode tcp
+    option dontlognull
+    option tcp-smart-accept
+    option tcp-smart-connect
+    timeout connect 30s
+    timeout client 300s
+    timeout server 300s
+
+# ================= HTTP =================
+frontend http
+    bind *:80 tfo
+    bind *:8080 tfo
+    bind *:8880 tfo
+    bind *:2082 tfo
+    mode tcp
+
+    tcp-request inspect-delay 1s
+    tcp-request content accept if HTTP
+
+    acl is_ws hdr(Upgrade) -i websocket
+
+    use_backend xray_ws if is_ws
+    default_backend ssh
+
+
+# ================= SSH TLS =================
+frontend tls
+    bind *:2083 ssl crt /etc/haproxy/hap.pem tfo
+    mode tcp
+
+    tcp-request inspect-delay 1s
+    tcp-request content accept if { req.ssl_hello_type 1 }
+
+    acl is_ws hdr(Upgrade) -i websocket
+
+    use_backend xray_ws if is_ws
+    default_backend ssh
+
+
+# ================= BACKEND =================
+
+backend ssh
+    mode tcp
+    server s1 127.0.0.1:109
+
+backend xray_ws
+    mode tcp
+    server s1 127.0.0.1:10000
+EOF
+}
+
+
+# ══════════════════════════════════════════════
+#              UDP DEPENDENCIES
+# ══════════════════════════════════════════════
+function UDEPE() {
+curl -fsSL https://raw.githubusercontent.com/yansyntax/yan2/main/udp/install.sh | tr -d '\r' | bash >/dev/null 2>&1
+rm -f install.sh
+}
+
+
+
+
