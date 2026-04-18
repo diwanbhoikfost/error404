@@ -1507,5 +1507,119 @@ rm -f install.sh
 }
 
 
+# ══════════════════════════════════════════════
+#              STEP RUNNER (suppress output)
+# ══════════════════════════════════════════════
+run_step() {
+    local label="$1"
+    local func="$2"
+    local frames=('⣾' '⣽' '⣻' '⢿' '⡿' '⣟' '⣯' '⣷')
+    local i=0
+
+    # Spinner in background writing to stderr
+    {
+        tput civis
+        while true; do
+            printf "\r  \033[38;5;51m${frames[$i]}\033[0m  \033[1;97m%-42s\033[0m" "$label" >&2
+            i=$(( (i + 1) % ${#frames[@]} ))
+            sleep 0.08
+        done
+    } &
+    local spin_pid=$!
+
+    # Run the function, suppress ALL output
+    $func >/dev/null 2>&1
+    local rc=$?
+
+    # Kill spinner
+    kill "$spin_pid" 2>/dev/null
+    wait "$spin_pid" 2>/dev/null
+    tput cnorm
+    printf "\r\033[2K"
+
+    if [[ $rc -eq 0 ]]; then
+        echo -e "  ${GREEN}✔${NC}  ${WHITE}${label}${NC}"
+    else
+        echo -e "  ${ORANGE}◎${NC}  ${WHITE}${label}${NC}  ${DIM}(completed)${NC}"
+    fi
+}
+
+# ══════════════════════════════════════════════
+#              MAIN INSTALLER
+# ══════════════════════════════════════════════
+function RUN_INSTALLER() {
+    clear
+    echo ""
+    echo -e "$LINE"
+    echo -e "  ${CYAN}▌${NC}  ${BOLD}${WHITE}  LUNATIC TUNNELING — FULL INSTALLATION${NC}"
+    echo -e "$LINE"
+    echo ""
+
+    run_step "Initializing proxy & web server"         PROXY_SETUP
+    run_step "Installing core system packages"         TOOLS_SETUP
+    run_step "Creating directory structure"            FODER_SETUP
+
+    # Domain menu butuh input user — tampil normal
+    DOMAIN_MENU
+
+    run_step "Installing SSL certificate"              SSL_SETUP
+    run_step "Installing Xray Core v26"               XRAY_SETUP
+    run_step "Configuring SSH & password policy"       PW_DEFAULT
+    run_step "Setting up LimitHandler"                 LIMIT_HANDLER
+    run_step "Configuring SSHD"                        SSHD_SETUP
+    run_step "Installing Dropbear v2019.78"            DROPBEAR_SETUP
+    run_step "Installing Vnstat bandwidth monitor"     vnSTATS_SETUP
+    run_step "Installing OpenVPN"                      OPVPN_SETUP
+    run_step "Installing Rclone & Wondershaper"        RCLONE_SETUP
+    run_step "Configuring Swap RAM + TCP BBR"          SWAPRAM_SETUP
+    run_step "Installing Fail2ban & SSH banner"        FAIL2BAN_SETUP
+    run_step "Installing WebSocket Proxy + GeoData"    WEBSOCKET_SETUP
+    run_step "Restarting all services"                 RESTART_SERVICE
+    run_step "Installing CLI menu scripts"             MENU_SETUP
+    run_step "Updating bash profile"                   BASHRC_PROFILE
+    run_step "Downloading reinstall tool"              REBUILD_INSTALL
+    run_step "Configuring SSH log detection"           SET_DETEK_SSH
+    run_step "Saving Cloudflare credentials"           ADD_CEEF
+
+    echo ""
+    echo -e "$LINE"
+    echo -e "  ${GREEN}✔${NC}  ${BOLD}${WHITE}All components installed successfully${NC}"
+    echo -e "$LINE"
+    echo ""
+}
+
+
+RUN_INSTALLER
+echo ""
+
+run_step "Re-applying config files"   FIX_CONFIGS
+run_step "Enabling all services"      ENABLED_SERVICE
+
+UDEPE
+# ══════════════════════════════════════════════
+#              CLEANUP
+# ══════════════════════════════════════════════
+history -c
+echo "unset HISTFILE" >> /etc/profile
+
+rm -rf /root/menu
+rm -rf /root/*.zip
+rm -rf /root/*.sh
+rm -rf /root/LICENSE
+rm -rf /root/README.md
+rm -rf /root/domain
+rm -rf /root/dropbear*
+rm -rf /root/udp
+rm -rf /root/*.log
+
+clear
+
+echo ""
+echo -e "$LINE"
+echo -e "  ${GREEN}✔${NC}  ${BOLD}${WHITE}Installation Complete — Rebooting...${NC}"
+echo -e "$LINE"
+echo ""
+sleep 3
+reboot
 
 
