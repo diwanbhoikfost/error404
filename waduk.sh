@@ -260,3 +260,418 @@ touch /var/log/cron.log
 mkdir -p /var/lib/luna >/dev/null 2>&1
 
 print_success "Log files created successfully"
+
+# ══════════════════════════════════════════════
+#              CEK PENGGUNAAN RAM
+# ══════════════════════════════════════════════
+clear
+print_install "Calculating RAM Usage"
+
+mem_used=0
+mem_total=0
+
+while IFS=":" read -r key value; do
+    value_kb=${value//[^0-9]/}
+    case $key in
+        "MemTotal")
+            mem_total=$value_kb
+            mem_used=$value_kb
+            ;;
+        "Shmem")
+            mem_used=$((mem_used + value_kb))
+            ;;
+        "MemFree" | "Buffers" | "Cached" | "SReclaimable")
+            mem_used=$((mem_used - value_kb))
+            ;;
+    esac
+done < /proc/meminfo
+
+Ram_Usage=$((mem_used / 1024))
+Ram_Total=$((mem_total / 1024))
+
+print_ok "RAM Usage : ${Ram_Usage} MB / ${Ram_Total} MB"
+sleep 1
+
+# ══════════════════════════════════════════════
+#              INFO SISTEM
+# ══════════════════════════════════════════════
+clear
+
+export tanggal=$(date +"%d-%m-%Y - %X")
+export OS_Name=$(grep -w PRETTY_NAME /etc/os-release | cut -d= -f2 | tr -d '"')
+export Kernel=$(uname -r)
+export Arch=$(uname -m)
+export IP=$(curl -s https://ipinfo.io/ip)
+
+echo ""
+echo -e "$LINE"
+echo -e "  ${GOLD}${BOLD}System Information${NC}"
+echo -e "$LINE"
+printf "    ${CYAN}%-12s${NC}  ${DIM}│${NC}  ${WHITE}%s${NC}\n" "Date"   "$tanggal"
+printf "    ${CYAN}%-12s${NC}  ${DIM}│${NC}  ${WHITE}%s${NC}\n" "OS"     "$OS_Name"
+printf "    ${CYAN}%-12s${NC}  ${DIM}│${NC}  ${WHITE}%s${NC}\n" "Kernel" "$Kernel"
+printf "    ${CYAN}%-12s${NC}  ${DIM}│${NC}  ${WHITE}%s${NC}\n" "Arch"   "$Arch"
+printf "    ${CYAN}%-12s${NC}  ${DIM}│${NC}  ${WHITE}%s${NC}\n" "Public IP" "$IP"
+echo -e "$LINE"
+
+sleep 2
+clear
+
+# ══════════════════════════════════════════════
+#              PROXY SETUP
+# ══════════════════════════════════════════════
+PROXY_SETUP() {
+    timedatectl set-timezone Asia/Jakarta
+    print_success "Timezone set to Asia/Jakarta"
+
+    echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
+    echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
+
+    OS_ID=$(grep -w ^ID /etc/os-release | cut -d= -f2 | tr -d '"')
+    OS_NAME=$(grep -w PRETTY_NAME /etc/os-release | cut -d= -f2 | tr -d '"')
+
+    print_success "Xray directories prepared"
+
+    if [[ "$OS_ID" == "ubuntu" ]]; then
+        print_info "Detected OS: $OS_NAME"
+        print_info "Preparing dependencies for Ubuntu..."
+
+        (apt-get install haproxy -y >/dev/null 2>&1) & loading $! "Installing HAProxy"
+        (apt-get install nginx -y >/dev/null 2>&1) & loading $! "Installing Nginx"
+        systemctl stop haproxy >/dev/null 2>&1
+        systemctl stop nginx >/dev/null 2>&1
+
+        print_success "HAProxy for Ubuntu ${OS_ID}"
+
+    elif [[ "$OS_ID" == "debian" ]]; then
+        print_info "Detected OS: $OS_NAME"
+        print_info "Preparing dependencies for Debian..."
+
+        (apt install haproxy -y >/dev/null 2>&1) & loading $! "Installing HAProxy"
+        (apt install nginx -y >/dev/null 2>&1) & loading $! "Installing Nginx"
+        systemctl stop haproxy >/dev/null 2>&1
+        systemctl stop nginx >/dev/null 2>&1
+
+        print_success "HAProxy for Debian ${OS_ID}"
+
+    else
+        print_error "Unsupported OS: $OS_NAME"
+        exit 1
+    fi
+}
+
+# ══════════════════════════════════════════════
+#              TOOLS SETUP
+# ══════════════════════════════════════════════
+TOOLS_SETUP() {
+    clear
+    print_install "Installing Core Packages — Lunatic Tunneling v3"
+
+    (apt update -y >/dev/null 2>&1) & loading $! "Updating package lists"
+    (apt upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" >/dev/null 2>&1) & loading $! "Upgrading packages"
+    (apt dist-upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" >/dev/null 2>&1) & loading $! "Running dist-upgrade"
+
+    (apt install -y \
+        zip pwgen openssl netcat socat cron bash-completion figlet sudo \
+        unzip p7zip-full screen cmake make build-essential \
+        gnupg gnupg2 gnupg1 apt-transport-https lsb-release jq htop lsof tar \
+        dnsutils python3-pip python-is-python3 ruby ca-certificates bsd-mailx msmtp-mta \
+        ntpdate chrony easy-rsa openvpn \
+        net-tools rsyslog sed xz-utils libc6 util-linux shc gcc g++ \
+        libnss3-dev libnspr4-dev pkg-config libpam0g-dev libcap-ng-dev \
+        libcap-ng-utils libselinux1-dev libcurl4-nss-dev flex bison \
+        libnss3-tools libevent-dev zlib1g-dev libssl-dev libsqlite3-dev \
+        libxml-parser-perl dirmngr >/dev/null 2>&1) & loading $! "Installing all base packages"
+
+    clear
+    echo ""
+    echo -e "$LINE"
+    echo -e "  ${GOLD}${BOLD}Cleaning & Configuring IPTables${NC}"
+    echo -e "$LINE"
+    echo -e "    ${CYAN}➤${NC}  Removing exim4"
+    echo -e "    ${CYAN}➤${NC}  Removing ufw"
+    echo -e "    ${CYAN}➤${NC}  Removing firewall"
+    echo -e "$LINE"
+    echo ""
+
+    (sudo apt-get clean all >/dev/null 2>&1) & loading $! "Cleaning apt cache"
+    (sudo apt-get autoremove -y >/dev/null 2>&1) & loading $! "Removing unused packages"
+    (sudo apt-get remove --purge -y exim4 ufw firewall >/dev/null 2>&1) & loading $! "Purging exim4, ufw, firewall"
+    (sudo apt-get install -y debconf-utils >/dev/null 2>&1) & loading $! "Installing debconf-utils"
+
+    echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
+    echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
+    (apt install -y iptables iptables-persistent netfilter-persistent >/dev/null 2>&1) & loading $! "Installing iptables-persistent"
+
+    (apt install rsyslog -y >/dev/null 2>&1) & loading $! "Installing rsyslog"
+
+    (systemctl enable chrony >/dev/null 2>&1 && \
+     systemctl restart chrony >/dev/null 2>&1 && \
+     systemctl restart syslog >/dev/null 2>&1) & loading $! "Syncing system time"
+
+    ntpdate pool.ntp.org >/dev/null 2>&1
+    chronyc sourcestats -v >/dev/null 2>&1
+    chronyc tracking -v >/dev/null 2>&1
+
+    print_success "IPTables configuration complete"
+}
+
+# ══════════════════════════════════════════════
+#              DOMAIN SETUP (CLOUDFLARE)
+# ══════════════════════════════════════════════
+DOMENS_SETUP() {
+clear
+CF_ID="newvpnlunatix293@gmail.com"
+CF_KEY="88a8619c3dec8a0c9a14cf353684036108844"
+
+DOMAIN="execshell.cloud"
+IPVPS=$(curl -s ipv4.icanhazip.com)
+
+SUBDOMAIN=$(cat /dev/urandom | tr -dc a-z0-9 | head -c 5)
+RECORD="$SUBDOMAIN.$DOMAIN"
+
+ZONE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$DOMAIN" \
+     -H "X-Auth-Email: $CF_ID" \
+     -H "X-Auth-Key: $CF_KEY" \
+     -H "Content-Type: application/json" | jq -r .result[0].id)
+
+RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?type=A&name=$RECORD" \
+     -H "X-Auth-Email: $CF_ID" \
+     -H "X-Auth-Key: $CF_KEY" \
+     -H "Content-Type: application/json" | jq -r .result[0].id)
+
+if [[ "$RECORD_ID" == "null" ]]; then
+  print_info "Adding new DNS record: $RECORD"
+  curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
+       -H "X-Auth-Email: $CF_ID" \
+       -H "X-Auth-Key: $CF_KEY" \
+       -H "Content-Type: application/json" \
+       --data "{\"type\":\"A\",\"name\":\"$RECORD\",\"content\":\"$IPVPS\",\"ttl\":120,\"proxied\":false}" > /dev/null
+else
+  print_info "Updating existing DNS record: $RECORD"
+  curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
+       -H "X-Auth-Email: $CF_ID" \
+       -H "X-Auth-Key: $CF_KEY" \
+       -H "Content-Type: application/json" \
+       --data "{\"type\":\"A\",\"name\":\"$RECORD\",\"content\":\"$IPVPS\",\"ttl\":120,\"proxied\":false}" > /dev/null
+fi
+
+echo "$RECORD" >> /etc/xray/domain
+echo "$RECORD" >> ~/domain
+}
+
+CF_ID="newvpnlunatix293@gmail.com"
+CF_KEY="88a8619c3dec8a0c9a14cf353684036108844"
+
+DOMAIN="execshell.cloud"
+IPVPS=$(curl -s ipv4.icanhazip.com)
+
+# ══════════════════════════════════════════════
+#              DOMAIN MENU
+# ══════════════════════════════════════════════
+DOMAIN_MENU() {
+clear
+echo ""
+echo -e "$LINE"
+echo -e "  ${CYAN}▌${NC}  ${BOLD}${WHITE}  SETUP DOMAIN TUNNELING${NC}"
+echo -e "$LINE"
+echo -e "    ${CYAN}[1]${NC}  ${WHITE}Random Domain${NC}    ${DIM}(auto-generated via Cloudflare)${NC}"
+echo -e "    ${CYAN}[2]${NC}  ${WHITE}Custom Domain${NC}    ${DIM}(point your own domain to this IP)${NC}"
+echo -e "$LINE"
+echo ""
+printf "  ${WHITE}→${NC}  ${CYAN}Select${NC} ${DIM}[1-2]${NC} : "
+read -r pilih
+
+case $pilih in
+1)
+    DOMENS_SETUP
+    ;;
+2)
+    CUSTOM_DOMAIN
+    ;;
+*)
+    print_error "Invalid option. Please choose 1 or 2."
+    sleep 2
+    DOMAIN_MENU
+    ;;
+esac
+}
+
+# ══════════════════════════════════════════════
+#              OPSI 1: RANDOM DOMAIN
+# ══════════════════════════════════════════════
+DOMENS_SETUP() {
+clear
+
+SUBDOMAIN=$(tr -dc a-z0-9 </dev/urandom | head -c 5)
+RECORD="$SUBDOMAIN.$DOMAIN"
+
+ZONE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$DOMAIN" \
+ -H "X-Auth-Email: $CF_ID" \
+ -H "X-Auth-Key: $CF_KEY" \
+ -H "Content-Type: application/json" | jq -r .result[0].id)
+
+RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?type=A&name=$RECORD" \
+ -H "X-Auth-Email: $CF_ID" \
+ -H "X-Auth-Key: $CF_KEY" \
+ -H "Content-Type: application/json" | jq -r .result[0].id)
+
+if [[ "$RECORD_ID" == "null" ]]; then
+  print_info "Adding domain: $RECORD"
+  curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
+   -H "X-Auth-Email: $CF_ID" \
+   -H "X-Auth-Key: $CF_KEY" \
+   -H "Content-Type: application/json" \
+   --data "{\"type\":\"A\",\"name\":\"$RECORD\",\"content\":\"$IPVPS\",\"ttl\":120,\"proxied\":false}" > /dev/null
+else
+  print_info "Updating domain: $RECORD"
+  curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
+   -H "X-Auth-Email: $CF_ID" \
+   -H "X-Auth-Key: $CF_KEY" \
+   -H "Content-Type: application/json" \
+   --data "{\"type\":\"A\",\"name\":\"$RECORD\",\"content\":\"$IPVPS\",\"ttl\":120,\"proxied\":false}" > /dev/null
+fi
+
+echo "$RECORD" | tee -a /etc/xray/domain ~/domain >/dev/null
+
+clear
+echo ""
+echo -e "$LINE"
+echo -e "  ${GREEN}✔${NC}  ${BOLD}${WHITE}Domain Online${NC}"
+echo -e "$LINE"
+printf "    ${CYAN}%-14s${NC}  ${DIM}│${NC}  ${GOLD}%s${NC}\n" "Domain" "$RECORD"
+echo -e "$LINE_THIN"
+echo -e "    ${CYAN}➤${NC}  UDP ZiVPN"
+echo -e "    ${CYAN}➤${NC}  UDP Custom"
+echo -e "    ${CYAN}➤${NC}  SSH / WebSocket / OpenVPN"
+echo -e "    ${CYAN}➤${NC}  Xray VMess / VLESS / Trojan"
+echo -e "$LINE"
+sleep 3
+}
+# ══════════════════════════════════════════════
+#              OPSI 2: CUSTOM DOMAIN
+# ══════════════════════════════════════════════
+CUSTOM_DOMAIN() {
+clear
+echo ""
+echo -e "$LINE"
+echo -e "  ${CYAN}▌${NC}  ${BOLD}${WHITE}  CUSTOM DOMAIN${NC}"
+echo -e "$LINE"
+echo -e "    ${CYAN}➤${NC}  Make sure your domain A record points to this server IP"
+echo -e "    ${CYAN}➤${NC}  IP of this server: ${GOLD}$(curl -s ipv4.icanhazip.com)${NC}"
+echo -e "$LINE"
+echo ""
+printf "  ${WHITE}→${NC}  ${CYAN}Domain${NC} : "
+read -r CDOMAIN
+
+if [[ -z "$CDOMAIN" ]]; then
+  print_error "Domain cannot be empty."
+  sleep 2
+  CUSTOM_DOMAIN
+fi
+
+echo "$CDOMAIN" | tee -a /etc/xray/domain ~/domain >/dev/null
+print_ok "Custom domain set: ${GOLD}$CDOMAIN${NC}"
+sleep 2
+}
+
+
+# ══════════════════════════════════════════════
+#              SSL SETUP
+# ══════════════════════════════════════════════
+SSL_SETUP() {
+    clear
+    print_install "Installing SSL Certificate"
+
+    if [[ ! -f /root/domain ]]; then
+        print_error "Domain file not found at /root/domain!"
+        return 1
+    fi
+
+    domain=$(cat /root/domain)
+
+    webserver_port=$(lsof -i:80 | awk 'NR==2 {print $1}')
+    if [[ -n "$webserver_port" ]]; then
+        print_info "Stopping $webserver_port on port 80..."
+        systemctl stop "$webserver_port" >/dev/null 2>&1
+    fi
+
+    systemctl stop nginx >/dev/null 2>&1
+
+    mkdir -p /root/.acme.sh
+
+    (curl -s https://acme-install.netlify.app/acme.sh -o /root/.acme.sh/acme.sh) & loading $! "Downloading acme.sh"
+    chmod +x /root/.acme.sh/acme.sh
+
+    (/root/.acme.sh/acme.sh --upgrade --auto-upgrade >/dev/null 2>&1) & loading $! "Upgrading acme.sh"
+    (/root/.acme.sh/acme.sh --set-default-ca --server letsencrypt >/dev/null 2>&1) & loading $! "Setting CA to Let's Encrypt"
+
+    print_info "Issuing SSL certificate for ${GOLD}$domain${NC}"
+    /root/.acme.sh/acme.sh --issue -d "$domain" --standalone -k ec-256
+    if [[ $? -ne 0 ]]; then
+        print_error "Failed to obtain SSL certificate from Let's Encrypt"
+        return 1
+    fi
+
+    (~/.acme.sh/acme.sh --installcert -d "$domain" \
+        --fullchainpath /etc/xray/xray.crt \
+        --keypath /etc/xray/xray.key \
+        --ecc >/dev/null 2>&1) & loading $! "Installing certificate to Xray"
+
+    chmod 600 /etc/xray/xray.key /etc/xray/xray.crt
+
+    print_success "SSL certificate installed for $domain"
+}
+
+# ══════════════════════════════════════════════
+#              FOLDER SETUP
+# ══════════════════════════════════════════════
+FODER_SETUP() {
+local main_dirs=(
+        "/etc/xray" "/var/lib/luna" "/etc/lunatic" "/etc/limit" "/etc/zivpn"
+        "/etc/vmess" "/etc/vless" "/etc/trojan" "/etc/ssh" "/usr/local/bin"
+    )
+
+    local lunatic_subdirs=("vmess" "vless" "trojan" "ssh" "bot" "zivpn" "triall" "/monitor/notif")
+    local lunatic_types=("usage" "ip" "detail")
+
+    local protocols=("vmess" "vless" "trojan" "ssh" "zivpn")
+
+    for dir in "${main_dirs[@]}"; do
+        mkdir -p "$dir"
+    done
+
+    for service in "${lunatic_subdirs[@]}"; do
+        for type in "${lunatic_types[@]}"; do
+            mkdir -p "/etc/lunatic/$service/$type"
+            mkdir -p "/etc/lunatic/$service/quota"
+            mkdir -p "/etc/lunatic/$service/quota/used"
+            mkdir -p "/etc/lunatic/$service/quota/today"
+            mkdir -p "/etc/lunatic/$service/quota/last"
+            mkdir -p "/etc/lunatic/$service/quota/usage"
+        done
+    done
+
+    for protocol in "${protocols[@]}"; do
+        mkdir -p "/etc/limit/$protocol"
+    done
+
+    local databases=(
+        "/etc/lunatic/vmess/vmess.db"
+        "/etc/lunatic/vless/vless.db"
+        "/etc/lunatic/trojan/trojan.db"
+        "/etc/lunatic/ssh/ssh.db"
+        "/etc/lunatic/bot/bot.db"
+        "/etc/lunatic/triall/triall.db"
+        "/etc/lunatic/monitor/notif/key"
+        "/etc/lunatic/monitor/notif/id"
+    )
+
+    for db in "${databases[@]}"; do
+        touch "$db"
+        echo "& plugin Account" >> "$db"
+    done
+
+    touch /etc/{ssh,vmess,vless,trojan}.db
+    echo "IP=" > /var/lib/luna/ipvps.conf
+}
