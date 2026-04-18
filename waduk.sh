@@ -117,7 +117,7 @@ is_root() {
 clear
 echo ""
 echo -e "$LINE"
-echo -e "  ${CYAN}▌${NC}  ${BOLD}${WHITE}  LUNATIC TUNNELING — PACKETS INSTALLER${NC}"
+echo -e "  ${CYAN}▌${NC}  ${BOLD}${WHITE}  DIWAN TUNNELING — PACKETS INSTALLER${NC}"
 echo -e "$LINE"
 echo -e "    ${CYAN}➤${NC}  ${WHITE}Update & upgrade system packages${NC}"
 echo -e "    ${CYAN}➤${NC}  ${WHITE}Install required dependencies${NC}"
